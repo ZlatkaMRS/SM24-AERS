@@ -1,0 +1,103 @@
+---
+title: "SM24-AERS25"
+author: "ZMRS"
+date: "2025-03-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## 1. Instal packages
+```{r}
+library(readxl)
+library(readr)
+library(ggplot2)
+library(hrbrthemes)
+library(ggbump)
+library(tidyverse)
+```
+
+## 1. Add data
+```{r}
+AGBM <- read_csv("data/AGBM.csv", na = "NA")
+BGBM <- read_csv("data/BGBM.csv", na = "NA")
+AGBMCover <- read_csv("data/AGBM-Cover.csv", na = "NA")
+BGBMKgCm2 <- read_excel("data/BGBMKgCm2.xlsx")
+# Aggregate data BGBM by core
+
+RootLD <-aggregate(BGBM$dry_roots_weight_g, by=list(BGBM$site_id,BGBM$transect_id,BGBM$`Distance from edge (m)`,BGBM$root_type), FUN=sum)
+
+Roots <-aggregate(BGBM$dry_roots_weight_g, by=list(BGBM$site_id,BGBM$transect_id,BGBM$`Distance from edge (m)`), FUN=sum)
+
+  RootMean <-aggregate(Roots$x, by=list(Roots$Group.1,Roots$Group.3), FUN=mean)
+  Rootstd <-aggregate(Roots$x, by=list(Roots$Group.1,Roots$Group.3), FUN=sd)
+  # Divide the average by the area of the core of 5 cm diameter
+```
+# 3. Figures
+```{r}
+ggplot(BGBM, aes(x=`Distance from edge (m)`, y=mean(dry_roots_weight_g), color=root_type)) + 
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    facet_grid(~site_id)
+
+#Sum
+ggplot(Roots, aes(x=Group.3, y=x, color=Group.1)) + 
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    facet_grid(~Group.1)
+
+#Mean add /23.75 later to convert in g/cm2
+
+ggplot(RootMean, aes(x=Group.2, y=x, color=Group.1)) + 
+    geom_smooth(method = 'glm',formula = y~poly(x,3))+
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    facet_grid(~Group.1)
+
+ggplot(RootMean, aes(x=Group.2, y=x, color=Group.1)) + 
+    geom_smooth(method = "glm", formula = y~poly(x,4))+
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    geom_errorbar(ymin=RootMean$x-Rootstd$x, ymax=RootMean$x+Rootstd$x) +
+    facet_grid(~Group.1)
+
+ggplot(AGBM, aes(x=`Distance from edge (m)`, y=`CarbonAGBM(kgC/m2)`, color=SITE)) + 
+    geom_smooth(method = "glm", formula = y~poly(x,3))+
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    theme_classic()
+
+ggplot(BGBMKgCm2, aes(x=`Distance from edge (m)`, y=`EstimatedCarbon(KgC/m2)`, color=SITE)) + 
+    geom_smooth(method = "glm", formula = y~poly(x,2))+
+    geom_point()+
+    geom_jitter(size = 2.5, alpha = .6) +
+    theme_classic()
+
+#try sigmoidal
+#ggplot(BGBMKgCm2, aes(x=`Distance from edge (m)`, y=`EstimatedCarbon(KgC/m2)`, color=SITE)) + 
+#    geom_sigmoid(aes(xend = 40, yend=10)) +
+#    geom_point()+
+#    geom_jitter(size = 2.5, alpha = .6) +
+#    theme_classic()
+
+ggplot() + geom_point(data=BGBMKgCm2, aes(x=`Distance from edge (m)`, y=`EstimatedCarbon(KgC/m2)`), color = "brown") +    
+     geom_point(data=AGBM, aes(x=`Distance from edge (m)`, y=`CarbonAGBM(kgC/m2)`), color = "green") +
+    geom_jitter(size = 5, alpha = .6) +
+    theme_classic()
+```
+
+```{r}
+# Heat map of percentage cover. X distance from edge y cover %
+ggplot(AGBMCover, aes(`Distance from edge (m)`, `Spp`, fill= Cover)) + 
+  geom_tile() +
+  scale_fill_gradient(low="white", high="blue") +
+  theme_classic()
+
+#Bubbles
+ggplot(AGBMCover, aes(x=`Distance from edge (m)`, y=Spp, size = Cover, color = Cover)) +
+    geom_point(alpha=0.5) +
+    scale_size(range = c(0.1, 20), name="Cover (%)")+
+  theme_classic()
+```
+
